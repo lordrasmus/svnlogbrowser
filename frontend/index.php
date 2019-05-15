@@ -24,6 +24,7 @@ require_once("template.php");
 
 if(count($changelogs) < 1)
     die('No changelogs have been configured, please run setup.');
+    
 
 $template = new Template();
 $template->assign_var('STYLESHEET', $stylesheet);
@@ -60,10 +61,15 @@ $changelog = $changelogs[$clv['t']];
 $template->assign_var('TYPE', $changelog['title']);
 $template->assign_var('TYPENUM', $clv['t']);
 
+if ( ! array_key_exists( "trac_url", $changelog)){
+	$changelog["trac_url"] = "";
+}
+
+
 $devs = array();
-$result = mysql_query("SELECT * FROM ${changelog['authors_table']}
+$result = mysqli_query($con,"SELECT * FROM ${changelog['authors_table']}
                        WHERE username != '' ORDER BY commits DESC");
-while($row = mysql_fetch_assoc($result))
+while($row = mysqli_fetch_assoc($result))
 {
 	$devs[$row['username']] = array(
 		'name' => stripslashes(htmlspecialchars($row['fullname'])),
@@ -131,7 +137,7 @@ if(isset($_GET['c']))
 // we can save a few CPU cycles in case the page request was higher
 // than the max page on a default view with nothing filtered.
 
-$row = mysql_fetch_row(mysql_query(
+$row = mysqli_fetch_row(mysqli_query($con,
     "SELECT COUNT(revision) FROM ${changelog['commits_table']}"));
 $total_revisions = $row[0];
 $pagecount = ceil($total_revisions / $clv['c']);
@@ -204,15 +210,15 @@ $db_query = "SELECT SQL_CALC_FOUND_ROWS ${changelog['commits_table']}.* " .
             "ORDER BY ${changelog['commits_table']}.revision DESC";
 $db_limit = " LIMIT $db_offset, {$clv['c']}";
 //echo "Query: $db_query$db_limit\n\n";
-$db_commits = mysql_query($db_query . $db_limit);
+$db_commits = mysqli_query($con,$db_query . $db_limit);
 if($db_commits !== false)
-	$num_revisions = mysql_num_rows($db_commits);
+	$num_revisions = mysqli_num_rows($db_commits);
 //else
 //	echo mysql_error();
 
 // Grab the total revision count for our real query.
-$result = mysql_query("SELECT FOUND_ROWS()");
-$row = mysql_fetch_row($result);
+$result = mysqli_query($con,"SELECT FOUND_ROWS()");
+$row = mysqli_fetch_row($result);
 $total_revisions = $row[0];
 
 // Re-adjust page count based on real query this time.
@@ -227,13 +233,13 @@ if($clv['p'] > $pagecount)
 	$clv['p'] = $pagecount;
 	$db_offset = ($clv['p'] - 1) * $clv['c'];
 	// So much for saving CPU cycles this run, but this should rarely happen.
-	$db_commits = mysql_query($db_query . " LIMIT $db_offset, {$clv['c']}");
+	$db_commits = mysqli_query($con,$db_query . " LIMIT $db_offset, {$clv['c']}");
 }
 
 $template->assign_var('LINECOUNT', number_format($total_revisions));
 
 $output = "<dl>\n";
-while($commit = mysql_fetch_assoc($db_commits))
+while($commit = mysqli_fetch_assoc($db_commits))
 {
 	$output .= "  <dt>";
 	$output .= "r{$commit['revision']}: {$commit['date']}";
@@ -243,14 +249,14 @@ while($commit = mysql_fetch_assoc($db_commits))
 
 	$output .= "  <dd>\n";
 
-	$changes = mysql_query("SELECT * FROM ${changelog['changes_table']} " .
+	$changes = mysqli_query($con,"SELECT * FROM ${changelog['changes_table']} " .
 	                       "WHERE revision = {$commit['revision']} ORDER BY path");
 	if($changes === false)
 		$output .= "    <p>No changes found for this commit.</p>\n";
 	else
 	{
 		$output .= "    <p>\n";
-		$num_changes = mysql_num_rows($changes);
+		$num_changes = mysqli_num_rows($changes);
 		if($clv['s'] == 1 && $num_changes > $changelog['summary_limit'])
 		{
 			$output .= "      " . anchor("javascript:;", "Click to show all " . number_format($num_changes) . " changes...",
@@ -259,7 +265,7 @@ while($commit = mysql_fetch_assoc($db_commits))
 		}
 		else
 		{
-			while($row = mysql_fetch_assoc($changes))
+			while($row = mysqli_fetch_assoc($changes))
 			{
 				$output .= svnlog_format_change($commit['revision'], $row['action'], $row['path'],
 												$row['copy_path'], $row['copy_revision']);

@@ -65,7 +65,7 @@ function svnlog_format_change($revision, $action, $path, $copy_path = '', $copy_
 {
 	global $icons, $changelog;
 	$output = '';
-
+	
 	$output .= "      " . image($icons[$action], $action) . "&nbsp;&nbsp;";
 	$output .= svnlog_format_path($path, $action);
 	if($changelog['diff_url'] != '')
