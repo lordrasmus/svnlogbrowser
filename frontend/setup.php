@@ -190,10 +190,10 @@ if(isset($_POST['edit']))
     {
         // Update existing changelog settings in the database.
 
-        if(!mysql_query("UPDATE `changelogs` SET `name` = \"$name\", `svn_url` = \"$svn_url\", " .
+        if(!mysqli_query($con,"UPDATE `changelogs` SET `name` = \"$name\", `svn_url` = \"$svn_url\", " .
                         "`summary_limit` = $summary_limit, `trunk` = \"$trunk\", `tags` = \"$tags\", " .
                         "`branches` = \"$branches\", `diff_url` = \"$diff_url\" WHERE `id` = $id"))
-            slb_die(mysql_error());
+            slb_die(mysqli_error());
         slb_read_settings();
 
         slb_output(slb_main_page(), $name . ' changelog updated successfully.');
@@ -246,9 +246,9 @@ if(isset($_GET['edit']))
 
     $content .= "\n\n<h2>Developers:</h2>\n\n";
 
-    if(!($result = mysql_query("SELECT * FROM `${cl['authors_table']}` ORDER BY `username`")))
-        slb_die(mysql_error());
-    if(mysql_num_rows($result) == 0)
+    if(!($result = mysqli_query($con,"SELECT * FROM `${cl['authors_table']}` ORDER BY `username`")))
+        slb_die(mysqli_error());
+    if(mysqli_num_rows($result) == 0)
         $content .= "<p>No developers to edit, please run an update first.</p>";
     else
     {
@@ -261,7 +261,7 @@ if(isset($_GET['edit']))
 <tr><th>Username</th><th>Full Name</th><th>Commits</th><th>Active</th></tr>
 CONTENT;
 
-        while($row = mysql_fetch_assoc($result))
+        while($row = mysqli_fetch_assoc($result))
         {
             $active = $row['active'] ? 'Yes' : 'No';
             $fullname = stripslashes(htmlspecialchars($row['fullname']));
