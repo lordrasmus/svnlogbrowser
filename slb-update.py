@@ -8,7 +8,11 @@
 # configuration from. This should be the same database that the web frontend
 # is (or will be) running from.
 
-from slb_config import *
+try:
+	from slb_config import *
+except:
+	print("slb_config.py not found, copy and edit slb_config.py.sample")
+	exit(1)
 
 
 ######## CONFIGURATION ENDS HERE ########
