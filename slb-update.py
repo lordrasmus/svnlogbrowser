@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # vim ai ts=4 sts=4 et sw=4
 
 # svnLogBrowser: Log Update Script
@@ -8,19 +8,16 @@
 # configuration from. This should be the same database that the web frontend
 # is (or will be) running from.
 
-db_hostname = 'localhost'
-db_username = ''
-db_password = ''
-db_database = ''
+from slb_config import *
 
 
 ######## CONFIGURATION ENDS HERE ########
 
 
 SLB_VERSION = '1.0.0'
-print 'svnLogBrowser - Version: %s' % SLB_VERSION
+print( 'svnLogBrowser - Version: %s' % SLB_VERSION )
 
-import MySQLdb as dbapi
+import pymysql as dbapi
 import sys, pysvn, time
 from string import Template
 
@@ -29,10 +26,10 @@ def print_pysvn_error(errors):
     codes = []
     if len(errors) > 1:
         for message, code in errors[1]:
-            print 'Error: #%d - %s' % (code, message)
+            print('Error: #%d - %s' % (code, message))
             codes.append(code)
     elif len(errors) is 1:
-        print 'Error: %s' % errors[0]
+        print('Error: %s' % errors[0] )
     return codes
 
 def clear_null(value):
@@ -65,18 +62,18 @@ def insert_commit(db, cursor, table_prefix, log):
     try:
         cursor.execute("INSERT INTO `" + commit_table + "` (`revision`, `author`, `date`, `message`) VALUES (%s, %s, %s, %s)",
                        (revision, clear_null(log['author']), date, clear_null(log['message'])))
-    except dbapi.DatabaseError, e:
+    except dbapi.DatabaseError as e:
         (code, message) = e
         # 1062 = Duplicate key error, meaning this commit was already added.
-        if code != 1062: print "Error adding commit to database: %s" % e
+        if code != 1062: print("Error adding commit to database: %s" % e)
         db.rollback()
         return
 
     # If the above was added successfully, we'll add the changed paths now.
     try:
         cursor.executemany("INSERT INTO `" + changes_table + "` (`revision`, `action`, `path`, `copy_path`, `copy_revision`) VALUES (%s, %s, %s, %s, %s)", changes)
-    except dbapi.DatabaseError, e:
-        print "Error adding change information (for revision %s) to the database: %s" % (revision, e)
+    except dbapi.DatabaseError as e:
+        print("Error adding change information (for revision %s) to the database: %s" % (revision, e))
         db.rollback()
         return
 
@@ -95,12 +92,12 @@ try:
     # Pull the configuration from the database.
     cursor.execute('SELECT `id`, `name`, `table_prefix`, `latest_revision`, `svn_url` FROM `changelogs`')
     if cursor.rowcount < 1:
-        print 'There are no changelogs setup, please run configuration first.'
+        print('There are no changelogs setup, please run configuration first.')
         sys.exit(1)
     changelogs = cursor.fetchall()
 
-except dbapi.Error, e:
-    print 'Error initializing database: %s' % e
+except dbapi.Error as e:
+    print('Error initializing database: %s' % e)
     sys.exit(1)
 
 # Startup our SVN client.
@@ -118,29 +115,29 @@ authors_update = Template("""
 for cl in changelogs:
 
     (uid, name, table_prefix, latest_revision, svn_url) = cl
-    print 'Changelog: %s' % name
-    print 'Last Update: %d' % latest_revision
+    print('Changelog: %s' % name)
+    print('Last Update: %d' % latest_revision)
 
     try:
         entry = client.info2(svn_url, revision =
                              pysvn.Revision(pysvn.opt_revision_kind.head),
                              recurse = False)
-    except pysvn.ClientError, e:
+    except pysvn.ClientError as e:
         print_pysvn_error(e.args)
         continue
 
     if len(entry) < 1:
-        print 'Error retrieving information from the SVN repository.'
+        print('Error retrieving information from the SVN repository.')
         continue
 
     (root_path, svn_info) = entry[0]
-    print 'Current Revision: %d' % svn_info['rev'].number
+    print('Current Revision: %d' % svn_info['rev'].number)
 
     cursor.execute('UPDATE `changelogs` SET `svn_root` = %s WHERE `id` = %s', (svn_info['repos_root_URL'], uid))
     db.commit()
 
     if svn_info['rev'].number == latest_revision:
-        print "No commits since last update, we're done here."
+        print("No commits since last update, we're done here.")
         continue
 
     # We split up the workload to only grab 100 revisions at a time.
@@ -155,14 +152,14 @@ for cl in changelogs:
 
     for (start_rev, end_rev) in log_ranges:
 
-        print 'Retrieving revisions %d through %d.' % (start_rev, end_rev)
+        print('Retrieving revisions %d through %d.' % (start_rev, end_rev))
 
         try:
             messages = client.log( svn_url,
                 revision_start = pysvn.Revision(pysvn.opt_revision_kind.number, start_rev),
                 revision_end = pysvn.Revision(pysvn.opt_revision_kind.number, end_rev),
                 discover_changed_paths = True, strict_node_history = True, limit = 0 )
-        except pysvn.ClientError, e:
+        except pysvn.ClientError as e:
             codes = print_pysvn_error(e.args)
             if 195012 in codes:
                 continue
